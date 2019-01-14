@@ -27,8 +27,8 @@ common_dictionary = Dictionary(DocList)
 common_corpus = [common_dictionary.doc2bow(text) for text in DocList]
 
 # Train the model on the corpus.
-N_Topics = 15
-lda = LdaModel(common_corpus, num_topics=N_Topics,alpha='asymmetric')
+N_Topics = 10
+lda = LdaModel(common_corpus, num_topics=N_Topics,alpha='asymmetric', random_state=1)
 # Now produce probabilities based on the Corpus
 LDAvectors = []
 for i in range(len(DocList)):
@@ -54,8 +54,8 @@ for i in range(len(DocList)):
     ClustersNames[label].append(Names[i])
     Labels.append( label )
     
-# 2. Call KMeans !
-from sklearn.feature_extraction.text import TfidfTransformer
+# 2. KMeans !
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn import metrics
 from sklearn.cluster import KMeans
 from sklearn.pipeline import make_pipeline
@@ -79,11 +79,11 @@ vectorizer = TfidfVectorizer(max_df=0.3, max_features=60000, min_df=1, stop_word
 X = vectorizer.fit_transform(RawTexts)
 print("n_samples: %d, n_features: %d" % X.shape)
 # Dimensionality reduction
-svd = TruncatedSVD(100)
+svd = TruncatedSVD(1000)
 normalizer = Normalizer(copy=False)
 lsa = make_pipeline(svd, normalizer)
 X = lsa.fit_transform(X)
-km = KMeans(n_clusters=N_Topics, init='k-means++', max_iter=100, n_init=1)
+km = KMeans(n_clusters=N_Topics, init='k-means++', max_iter=100, n_init=1, random_state=1)
 print("Clustering sparse data with %s" % km)
 km.fit(X)
 
@@ -93,6 +93,13 @@ LabelsKM = list(km.labels_)
 for i in range(len(DocList)):
     ClustersKM[LabelsKM[i]].append(i)
 
+###############
+# LDA by Scikit
+from sklearn.decomposition import LatentDirichletAllocation
+LDAsklearn = LatentDirichletAllocation(n_topics = N_Topics, max_iter=50, random_state=1)
+vectorizer = TfidfVectorizer(max_df=0.3, max_features=60000, min_df=1, stop_words='english', use_idf=True)
+X = vectorizer.fit_transform(RawTexts)
+LDAsklearn.fit(X)
     
 # in order to compare, we first need to associate the different clusters!
 print("Homogeneity: %0.3f" % metrics.homogeneity_score(Labels, km.labels_))
