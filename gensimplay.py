@@ -16,6 +16,7 @@ for document in os.listdir( FolderToParse ):
     words = words.split() # tokenize
     DocList.append(words)
     
+DocList = DocList[:100]
 # Load the names of species
 with open('list_of_species.txt', encoding='utf-8', errors='ignore') as f:
     Names = f.readlines()
@@ -25,6 +26,7 @@ Names = [x.strip() for x in Names]
 common_dictionary = Dictionary(DocList)
 # Create text to words mappings & count
 common_corpus = [common_dictionary.doc2bow(text) for text in DocList]
+print("We have loaded {0} documents and {1} words in total!".format(len(DocList), len(common_dictionary)))
 
 # Train the model on the corpus.
 N_Topics = 10
@@ -36,31 +38,34 @@ for i in range(len(DocList)):
     temp = [ common_dictionary.doc2bow(text.split()) for text in DocList[i] ]
     vector = lda[temp[0]]
     LDAvectors.append( vector )
+print('LDA is complete!')
 
 ##############
 # Clustering #
 
-# 1. Black and white approach
+####################
+# 1. LDA by gensim # 
 # the number of clusters is N_Topics
-# initialize the dictictionary of clusters
-Clusters = { i:[] for i in range(N_Topics)}
+ClustersLDA = { i:[] for i in range(N_Topics)}# initialize the dictictionary of clusters
 ClustersNames = { i:[] for i in range(N_Topics)} 
 Labels = []
 for i in range(len(DocList)):
     distr = [ x[1] for x in LDAvectors[i]]
     # find the argmax{distr} - ATTENTION: ties ???
     label = distr.index(max(distr))
-    Clusters[label].append(i)
+    ClustersLDA[label].append(i)
     ClustersNames[label].append(Names[i])
     Labels.append( label )
     
-# 2. KMeans !
+####################
+# 3. LDA by Scikit #
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn import metrics
 from sklearn.cluster import KMeans
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import Normalizer
 from sklearn.decomposition import TruncatedSVD
+from sklearn.decomposition import LatentDirichletAllocation
 
 # we need the raw texts as input for this method
 FolderToParse = "Data_Part/pagecontent_as_text/"
@@ -75,9 +80,25 @@ for document in os.listdir( FolderToParse ):
     f.close()
     RawTexts.append(text)
     
+LDAsklearn = LatentDirichletAllocation(n_topics = N_Topics, max_iter=50, random_state=1)
 vectorizer = TfidfVectorizer(max_df=0.3, max_features=60000, min_df=1, stop_words='english', use_idf=True)
-X = vectorizer.fit_transform(RawTexts)
 print("n_samples: %d, n_features: %d" % X.shape)
+X = vectorizer.fit_transform(RawTexts)
+LDAsklearn.fit(X)
+LDA_SKLvectors = LDAsklearn.transform(X)
+# Clustering - Black and white approach, as before
+ClustersSKL = { i:[] for i in range(N_Topics)}
+LabelsSKL = []
+for i in range(len(DocList)):
+    distr = list(LDA_SKLvectors[i])
+    # find the argmax{distr} - ATTENTION: ties ???
+    label = distr.index(max(distr))
+    ClustersSKL[label].append(i)
+    LabelsSKL.append( label )
+    
+#############
+# 2. KMeans #
+
 # Dimensionality reduction
 svd = TruncatedSVD(1000)
 normalizer = Normalizer(copy=False)
@@ -92,25 +113,15 @@ ClustersKM = { i:[] for i in range(N_Topics)}
 LabelsKM = list(km.labels_)
 for i in range(len(DocList)):
     ClustersKM[LabelsKM[i]].append(i)
-
-###############
-# LDA by Scikit
-from sklearn.decomposition import LatentDirichletAllocation
-LDAsklearn = LatentDirichletAllocation(n_topics = N_Topics, max_iter=50, random_state=1)
-vectorizer = TfidfVectorizer(max_df=0.3, max_features=60000, min_df=1, stop_words='english', use_idf=True)
-X = vectorizer.fit_transform(RawTexts)
-LDAsklearn.fit(X)
     
 # in order to compare, we first need to associate the different clusters!
+"""
 print("Homogeneity: %0.3f" % metrics.homogeneity_score(Labels, km.labels_))
 print("Completeness: %0.3f" % metrics.completeness_score(Labels, km.labels_))
 print("V-measure: %0.3f" % metrics.v_measure_score(Labels, km.labels_))
 print("Adjusted Rand-Index: %.3f" % metrics.adjusted_rand_score(Labels, km.labels_))
 print("Mutual information: %.3f" %metrics.mutual_info_score(ClustersKM.values(),Clusters.values()))
 
-
-
-"""
 from gensim.test.utils import datapath
 # Save model to disk.
 temp_file = datapath("model")
