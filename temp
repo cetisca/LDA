@@ -1,0 +1,8 @@
+with open('list_of_species.txt', encoding='utf-8', errors='ignore') as f:
+    Names = f.readlines()
+Names = [x.strip() for x in Names]
+Names_100New = []
+for document in os.listdir( "BoW_100random/" ):
+    temp = Names[ int(document[:-8])-1 ]
+    #print( temp )
+    Names_100New.append( temp )
