@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from nltk.tokenize import RegexpTokenizer
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
