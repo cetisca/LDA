@@ -4,8 +4,8 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 import os
 
-FolderToParse = "Data_Part/"
-FolderBOW = "BagsOfWords/"
+FolderToParse = "Data_all/"
+FolderBOW = "BoW_all/"
 # Create a corpus for all documents
 Corpus = []; N=0
 for document in os.listdir( FolderToParse ):
